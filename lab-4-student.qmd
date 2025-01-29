@@ -4,6 +4,12 @@ author: "Jack Jarvis!"
 format: html
 editor: source
 embed-resources: true
+execute:  
+  error: false
+  warning: false
+  echo: true
+  message: false
+  
 ---
 
 ## The Data
@@ -17,7 +23,8 @@ The data come to us from [TidyTuesday](https://github.com/rfordatascience/tidytu
 
 ```{r}
 #| label: setup
-
+library(tidyverse)
+library(dplyr)
 ```
 
 ```{r}
@@ -29,7 +36,10 @@ counties <- read_csv('https://raw.githubusercontent.com/rfordatascience/tidytues
 ```
 
 **1. Briefly describe the dataset (~ 4 sentences). What information does it contain?**
-
+The childcare cost data set contains 34567 observations and 61 variables. 
+Each observation relates to a year in a certain county and the information of the races, households
+and parenting. We see that the numbers relate to cost of a child maybe and the other dataset counties
+has the flip code for each county but does not have the variables data. 
 ## California Childcare Costs
 
 Let's start by focusing only on California. 
@@ -39,7 +49,17 @@ Let's start by focusing only on California.
 
 ```{r}
 #| label: ca-childcare-costs
+ca_counties <- counties %>%
+  filter(state_name == "California")
 
+# Merge the childcare_costs dataset with the CA counties data
+ca_childcare <- childcare_costs %>%
+  filter(county_fips_code %in% ca_counties$county_fips_code) %>%
+  left_join(ca_counties, by = "county_fips_code")
+
+# Check the structure and the first few rows to confirm
+glimpse(ca_childcare)
+head(ca_childcare)
 ```
 
 **3. Using a function from the `forcats` package, complete the code below to create a new variable where each county is categorized into one of the [10 Census regions](https://census.ca.gov/regions/) in California. Use the Region description (from the plot), not the Region number.**  
@@ -48,8 +68,85 @@ Let's start by focusing only on California.
 ```{r}
 #| label: recoding-county-to-census-regions
 
+# Create the county-to-region mapping
+county_to_region <- c(
+  "Butte" = "Region 1",
+  "Colusa" = "Region 1",
+  "El Dorado" = "Region 1",
+  "Glenn" = "Region 1",
+  "Lassen" = "Region 1",
+  "Modoc" = "Region 1",
+  "Nevada" = "Region 1",
+  "Placer" = "Region 1",
+  "Plumas" = "Region 1",
+  "Sacramento" = "Region 1",
+  "Shasta" = "Region 1",
+  "Sierra" = "Region 1",
+  "Siskiyou" = "Region 1",
+  "Sutter" = "Region 1",
+  "Tehama" = "Region 1",
+  "Yolo" = "Region 1",
+  "Yuba" = "Region 1",
+  
+  "Del Norte" = "Region 2",
+  "Humboldt" = "Region 2",
+  "Lake" = "Region 2",
+  "Mendocino" = "Region 2",
+  "Napa" = "Region 2",
+  "Sonoma" = "Region 2",
+  "Trinity" = "Region 2",
+  
+  "Alameda" = "Region 3",
+  "Contra Costa" = "Region 3",
+  "Marin" = "Region 3",
+  "San Francisco" = "Region 3",
+  "San Mateo" = "Region 3",
+  "Santa Clara" = "Region 3",
+  "Solano" = "Region 3",
+  
+  "Alpine" = "Region 4",
+  "Amador" = "Region 4",
+  "Calaveras" = "Region 4",
+  "Madera" = "Region 4",
+  "Mariposa" = "Region 4",
+  "Merced" = "Region 4",
+  "Mono" = "Region 4",
+  "San Joaquin" = "Region 4",
+  "Stanislaus" = "Region 4",
+  "Tuolumne" = "Region 4",
+  
+  "Monterey" = "Region 5",
+  "San Benito" = "Region 5",
+  "San Luis Obispo" = "Region 5",
+  "Santa Barbara" = "Region 5",
+  "Santa Cruz" = "Region 5",
+  "Ventura" = "Region 5",
+  
+  "Fresno" = "Region 6",
+  "Inyo" = "Region 6",
+  "Kern" = "Region 6",
+  "Kings" = "Region 6",
+  "Tulare" = "Region 6",
+  
+  "Riverside" = "Region 7",
+  "San Bernardino" = "Region 7",
+  
+  "Los Angeles" = "Region 8",
+  
+  "Orange" = "Region 9",
+  
+  "Imperial" = "Region 10",
+  "San Diego" = "Region 10"
+)
+
+# Recoding the county_name to census regions
 ca_childcare <- ca_childcare |> 
-  mutate(county_name = str_remove(county_name, " County")) |>
+  mutate(county_name = str_remove(county_name, " County")) |>  # Remove " County" suffix
+  mutate(census_region = recode(county_name, !!!county_to_region))  # Apply the region mapping
+
+# Check the updated dataframe
+head(ca_childcare)
+
   ...
 ```
 
@@ -58,7 +155,14 @@ ca_childcare <- ca_childcare |>
 
 ```{r}
 #| label: median-income-by-region-over-time
+income_by_region <- ca_childcare %>%
+  filter(study_year %in% c(2008, 2018)) %>%
+  group_by(census_region, study_year) %>%
+  summarize(median_income = median(mhi_2018, na.rm = TRUE)) %>%
+  spread(key = study_year, value = median_income) %>%
+  arrange(desc(`2018`))  # Arrange by 2018 values
 
+income_by_region
 ```
 
 
@@ -67,7 +171,20 @@ ca_childcare <- ca_childcare |>
 
 ```{r}
 #| label: lowest-median-weekly-price-2018
+lowest_care_price_region <- ca_childcare %>%
+  filter(study_year == 2018) %>%
+  group_by(census_region) %>%
+  summarise(median_infant_care_price = median(infant_care_price_2018, na.rm = TRUE)) %>%
+  arrange(median_infant_care_price) %>%
+  slice(1)  # Get the region with the lowest median price
 
+# Find the region with the lowest median income in 2018 from the previous question
+lowest_income_region <- income_by_region %>%
+  slice_min(order_by = `2018`, n = 1)  # Get the region with the lowest median income in 2018
+
+# Display both results to compare
+lowest_care_price_region
+lowest_income_region
 ```
 
 **6. The following plot shows, for all ten regions, the change over time of the full-time median price for center-based childcare for infants, toddlers, and preschoolers. Recreate the plot. You do not have to replicate the exact colors or theme, but your plot should have the same content, including the order of the facets and legend, reader-friendly labels, axes breaks, and a loess smoother.**
@@ -76,7 +193,31 @@ ca_childcare <- ca_childcare |>
 
 ```{r}
 #| label: recreate-plot
+ca_childcare_long <- ca_childcare %>%
+  select(census_region, study_year, infant_care_price_2018, toddler_care_price_2018, preschool_care_price_2018) %>%
+  pivot_longer(cols = c(infant_care_price_2018, toddler_care_price_2018, preschool_care_price_2018),
+               names_to = "age_group", values_to = "price") %>%
+  filter(!is.na(price))  # Remove any NA values
 
+# Plot using ggplot2
+ggplot(ca_childcare_long, aes(x = study_year, y = price, color = age_group)) +
+  geom_point(alpha = 0.6) +  # Scatter plot with some transparency
+  geom_smooth(method = "loess", se = FALSE, size = 1.2) +  # Loess smoother without standard error ribbon
+  facet_wrap(~ age_group, scales = "free_y", ncol = 1) +  # Facets for each age group with free y-axis scales
+  labs(
+    title = "Change in Full-Time Median Price for Center-Based Childcare (2018 Dollars)",
+    x = "Year",
+    y = "Median Weekly Price (2018 Dollars)",
+    color = "Age Group"
+  ) +
+  scale_x_continuous(breaks = seq(2008, 2018, by = 2)) +  # X-axis breaks at every 2 years
+  theme_minimal() +  # Clean minimal theme
+  theme(
+    strip.text = element_text(size = 12, face = "bold"),  # Bold facet labels
+    legend.position = "bottom",  # Move legend to the bottom
+    legend.title = element_text(size = 12),  # Adjust legend title size
+    legend.text = element_text(size = 10)  # Adjust legend text size
+  )
 ```
 
 
