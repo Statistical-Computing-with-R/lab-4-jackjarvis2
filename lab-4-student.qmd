@@ -9,7 +9,7 @@ execute:
   warning: false
   echo: true
   message: false
-  
+
 ---
 
 ## The Data
@@ -57,9 +57,6 @@ ca_childcare <- childcare_costs %>%
   filter(county_fips_code %in% ca_counties$county_fips_code) %>%
   left_join(ca_counties, by = "county_fips_code")
 
-# Check the structure and the first few rows to confirm
-glimpse(ca_childcare)
-head(ca_childcare)
 ```
 
 **3. Using a function from the `forcats` package, complete the code below to create a new variable where each county is categorized into one of the [10 Census regions](https://census.ca.gov/regions/) in California. Use the Region description (from the plot), not the Region number.**  
@@ -144,10 +141,7 @@ ca_childcare <- ca_childcare |>
   mutate(county_name = str_remove(county_name, " County")) |>  # Remove " County" suffix
   mutate(census_region = recode(county_name, !!!county_to_region))  # Apply the region mapping
 
-# Check the updated dataframe
-head(ca_childcare)
 
-  ...
 ```
 
 
@@ -160,7 +154,7 @@ income_by_region <- ca_childcare %>%
   group_by(census_region, study_year) %>%
   summarize(median_income = median(mhi_2018, na.rm = TRUE)) %>%
   spread(key = study_year, value = median_income) %>%
-  arrange(desc(`2018`))  # Arrange by 2018 values
+  arrange(desc(`2018`)) 
 
 income_by_region
 ```
@@ -171,10 +165,11 @@ income_by_region
 
 ```{r}
 #| label: lowest-median-weekly-price-2018
+
 lowest_care_price_region <- ca_childcare %>%
   filter(study_year == 2018) %>%
   group_by(census_region) %>%
-  summarise(median_infant_care_price = median(infant_care_price_2018, na.rm = TRUE)) %>%
+  summarise(median_infant_care_price = median(mc_infant, na.rm = TRUE)) %>%
   arrange(median_infant_care_price) %>%
   slice(1)  # Get the region with the lowest median price
 
@@ -185,6 +180,7 @@ lowest_income_region <- income_by_region %>%
 # Display both results to compare
 lowest_care_price_region
 lowest_income_region
+
 ```
 
 **6. The following plot shows, for all ten regions, the change over time of the full-time median price for center-based childcare for infants, toddlers, and preschoolers. Recreate the plot. You do not have to replicate the exact colors or theme, but your plot should have the same content, including the order of the facets and legend, reader-friendly labels, axes breaks, and a loess smoother.**
@@ -193,31 +189,37 @@ lowest_income_region
 
 ```{r}
 #| label: recreate-plot
-ca_childcare_long <- ca_childcare %>%
-  select(census_region, study_year, infant_care_price_2018, toddler_care_price_2018, preschool_care_price_2018) %>%
-  pivot_longer(cols = c(infant_care_price_2018, toddler_care_price_2018, preschool_care_price_2018),
-               names_to = "age_group", values_to = "price") %>%
-  filter(!is.na(price))  # Remove any NA values
+# Filter the data for the relevant years and categories
+plot_data <- ca_childcare %>%
+  filter(study_year >= 2008 & study_year <= 2018) %>%
+  select(study_year, census_region, mc_infant, mc_toddler, mc_preschool) %>%
+  gather(key = "age_group", value = "median_price", mc_infant:mc_preschool)
 
-# Plot using ggplot2
-ggplot(ca_childcare_long, aes(x = study_year, y = price, color = age_group)) +
-  geom_point(alpha = 0.6) +  # Scatter plot with some transparency
-  geom_smooth(method = "loess", se = FALSE, size = 1.2) +  # Loess smoother without standard error ribbon
-  facet_wrap(~ age_group, scales = "free_y", ncol = 1) +  # Facets for each age group with free y-axis scales
+# Create the plot
+ggplot(plot_data, aes(x = study_year, y = median_price, color = census_region)) +
+  geom_line() +
+  facet_wrap(~ age_group, scales = "free_y", ncol = 1, labeller = as_labeller(c(
+    mc_infant = "Infants",
+    mc_toddler = "Toddlers",
+    mc_preschool = "Preschoolers"
+  ))) +
   labs(
-    title = "Change in Full-Time Median Price for Center-Based Childcare (2018 Dollars)",
+    title = "Change Over Time of Full-Time Median Price for Center-Based Childcare",
     x = "Year",
     y = "Median Weekly Price (2018 Dollars)",
-    color = "Age Group"
+    color = "Region"
   ) +
-  scale_x_continuous(breaks = seq(2008, 2018, by = 2)) +  # X-axis breaks at every 2 years
-  theme_minimal() +  # Clean minimal theme
+  theme_minimal() +
   theme(
-    strip.text = element_text(size = 12, face = "bold"),  # Bold facet labels
-    legend.position = "bottom",  # Move legend to the bottom
-    legend.title = element_text(size = 12),  # Adjust legend title size
-    legend.text = element_text(size = 10)  # Adjust legend text size
-  )
+    legend.position = "right",
+    plot.title = element_text(size = 14, face = "bold"),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10),
+    strip.text = element_text(size = 12, face = "bold")
+  ) +
+  scale_color_brewer(palette = "Set3") +
+  geom_smooth(method = "loess", se = FALSE, linetype = "dashed")
+
 ```
 
 
@@ -228,14 +230,30 @@ ggplot(ca_childcare_long, aes(x = study_year, y = price, color = age_group)) +
 ```{r}
 #| label: scatterplot-median-income-vs-childcare-cost
 
+# Create scatterplot with linear regression line
+ggplot(ca_childcare, aes(x = mhi_2018, y = mc_infant)) + 
+  geom_point(alpha = 0.6) +  
+  geom_smooth(method = "lm", se = FALSE, color = "blue", size = 1.2) + 
+  labs(
+    title = "Relationship Between Median Household Income and Median Weekly Infant Care Price",
+    x = "Median Household Income (2018 Dollars)",
+    y = "Median Weekly Infant Care Price (2018 Dollars)"
+  ) +
+  theme_minimal() +  
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10)
+  )
+
 ```
 
 **8. Look up the documentation for `lm()` and fit a linear regression model to the relationship shown in your plot above.**
 
 ```{r}
 # complete the code provided
-reg_mod1 <- lm()
-summary(reg_mod1)
+#reg_mod1 <- lm()
+#summary(reg_mod1)
 ```
 
 **9. Using the output from `summary()`, write out the estimated regression line (recall: $y = mx + b$).**
