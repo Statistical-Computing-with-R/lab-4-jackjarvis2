@@ -65,81 +65,80 @@ ca_childcare <- childcare_costs %>%
 ```{r}
 #| label: recoding-county-to-census-regions
 
-# Create the county-to-region mapping
 county_to_region <- c(
-  "Butte" = "Region 1",
-  "Colusa" = "Region 1",
-  "El Dorado" = "Region 1",
-  "Glenn" = "Region 1",
-  "Lassen" = "Region 1",
-  "Modoc" = "Region 1",
-  "Nevada" = "Region 1",
-  "Placer" = "Region 1",
-  "Plumas" = "Region 1",
-  "Sacramento" = "Region 1",
-  "Shasta" = "Region 1",
-  "Sierra" = "Region 1",
-  "Siskiyou" = "Region 1",
-  "Sutter" = "Region 1",
-  "Tehama" = "Region 1",
-  "Yolo" = "Region 1",
-  "Yuba" = "Region 1",
+  "Butte" = "Superior California",
+  "Colusa" = "Superior California",
+  "El Dorado" = "Superior California",
+  "Glenn" = "Superior California",
+  "Lassen" = "Superior California",
+  "Modoc" = "Superior California",
+  "Nevada" = "Superior California",
+  "Placer" = "Superior California",
+  "Plumas" = "Superior California",
+  "Sacramento" = "Superior California",
+  "Shasta" = "Superior California",
+  "Sierra" = "Superior California",
+  "Siskiyou" = "Superior California",
+  "Sutter" = "Superior California",
+  "Tehama" = "Superior California",
+  "Yolo" = "Superior California",
+  "Yuba" = "Superior California",
   
-  "Del Norte" = "Region 2",
-  "Humboldt" = "Region 2",
-  "Lake" = "Region 2",
-  "Mendocino" = "Region 2",
-  "Napa" = "Region 2",
-  "Sonoma" = "Region 2",
-  "Trinity" = "Region 2",
+  "Del Norte" = "North Coast",
+  "Humboldt" = "North Coast",
+  "Lake" = "North Coast",
+  "Mendocino" = "North Coast",
+  "Napa" = "North Coast",
+  "Sonoma" = "North Coast",
+  "Trinity" = "North Coast",
   
-  "Alameda" = "Region 3",
-  "Contra Costa" = "Region 3",
-  "Marin" = "Region 3",
-  "San Francisco" = "Region 3",
-  "San Mateo" = "Region 3",
-  "Santa Clara" = "Region 3",
-  "Solano" = "Region 3",
+  "Alameda" = "San Francisco Bay Area",
+  "Contra Costa" = "San Francisco Bay Area",
+  "Marin" = "San Francisco Bay Area",
+  "San Francisco" = "San Francisco Bay Area",
+  "San Mateo" = "San Francisco Bay Area",
+  "Santa Clara" = "San Francisco Bay Area",
+  "Solano" = "San Francisco Bay Area",
   
-  "Alpine" = "Region 4",
-  "Amador" = "Region 4",
-  "Calaveras" = "Region 4",
-  "Madera" = "Region 4",
-  "Mariposa" = "Region 4",
-  "Merced" = "Region 4",
-  "Mono" = "Region 4",
-  "San Joaquin" = "Region 4",
-  "Stanislaus" = "Region 4",
-  "Tuolumne" = "Region 4",
+  "Alpine" = "Northern San Joaquin Valley",
+  "Amador" = "Northern San Joaquin Valley",
+  "Calaveras" = "Northern San Joaquin Valley",
+  "Madera" = "Northern San Joaquin Valley",
+  "Mariposa" = "Northern San Joaquin Valley",
+  "Merced" = "Northern San Joaquin Valley",
+  "Mono" = "Northern San Joaquin Valley",
+  "San Joaquin" = "Northern San Joaquin Valley",
+  "Stanislaus" = "Northern San Joaquin Valley",
+  "Tuolumne" = "Northern San Joaquin Valley",
   
-  "Monterey" = "Region 5",
-  "San Benito" = "Region 5",
-  "San Luis Obispo" = "Region 5",
-  "Santa Barbara" = "Region 5",
-  "Santa Cruz" = "Region 5",
-  "Ventura" = "Region 5",
+  "Monterey" = "Central Coast",
+  "San Benito" = "Central Coast",
+  "San Luis Obispo" = "Central Coast",
+  "Santa Barbara" = "Central Coast",
+  "Santa Cruz" = "Central Coast",
+  "Ventura" = "Central Coast",
   
-  "Fresno" = "Region 6",
-  "Inyo" = "Region 6",
-  "Kern" = "Region 6",
-  "Kings" = "Region 6",
-  "Tulare" = "Region 6",
+  "Fresno" = "Southern San Joaquin Valley",
+  "Inyo" = "Southern San Joaquin Valley",
+  "Kern" = "Southern San Joaquin Valley",
+  "Kings" = "Southern San Joaquin Valley",
+  "Tulare" = "Southern San Joaquin Valley",
   
-  "Riverside" = "Region 7",
-  "San Bernardino" = "Region 7",
+  "Riverside" = "Inland Empire",
+  "San Bernardino" = "Inland Empire",
   
-  "Los Angeles" = "Region 8",
+  "Los Angeles" = "Los Angeles County",
   
-  "Orange" = "Region 9",
+  "Orange" = "Orange County",
   
-  "Imperial" = "Region 10",
-  "San Diego" = "Region 10"
+  "Imperial" = "San Diego - Imperial",
+  "San Diego" = "San Diego - Imperial"
 )
 
 # Recoding the county_name to census regions
 ca_childcare <- ca_childcare |> 
   mutate(county_name = str_remove(county_name, " County")) |>  # Remove " County" suffix
-  mutate(census_region = recode(county_name, !!!county_to_region))  # Apply the region mapping
+  mutate(census_region = recode(county_name, !!!county_to_region))  # Apply the updated region mapping
 
 
 ```
@@ -189,23 +188,32 @@ lowest_income_region
 
 ```{r}
 #| label: recreate-plot
-# Filter the data for the relevant years and categories
+
 plot_data <- ca_childcare %>%
   filter(study_year >= 2008 & study_year <= 2018) %>%
   select(study_year, census_region, mc_infant, mc_toddler, mc_preschool) %>%
-  gather(key = "age_group", value = "median_price", mc_infant:mc_preschool)
+  pivot_longer(cols = mc_infant:mc_preschool, names_to = "age_group", values_to = "median_price")
+
+region_order <- plot_data %>%
+  group_by(census_region) %>%
+  summarise(median_value = median(median_price, na.rm = TRUE)) %>%
+  arrange(desc(median_value)) %>%
+  pull(census_region)
+
+plot_data$census_region <- factor(plot_data$census_region, levels = region_order)
 
 # Create the plot
 ggplot(plot_data, aes(x = study_year, y = median_price, color = census_region)) +
-  geom_line() +
-  facet_wrap(~ age_group, scales = "free_y", ncol = 1, labeller = as_labeller(c(
+  geom_smooth(method = "loess", se = FALSE, linetype = "dashed") + 
+  geom_point() +  # Add points
+  facet_wrap(~ age_group, scales = "fixed", ncol = 3, labeller = as_labeller(c(
     mc_infant = "Infants",
     mc_toddler = "Toddlers",
     mc_preschool = "Preschoolers"
   ))) +
   labs(
     title = "Change Over Time of Full-Time Median Price for Center-Based Childcare",
-    x = "Year",
+    x = "Study Year",  # Label for x-axis
     y = "Median Weekly Price (2018 Dollars)",
     color = "Region"
   ) +
@@ -215,10 +223,14 @@ ggplot(plot_data, aes(x = study_year, y = median_price, color = census_region)) 
     plot.title = element_text(size = 14, face = "bold"),
     axis.title = element_text(size = 12),
     axis.text = element_text(size = 10),
-    strip.text = element_text(size = 12, face = "bold")
+    axis.text.x = element_text(size = 8, angle = 45, hjust = 1),  
+    strip.text = element_text(size = 12, face = "bold", color = "black"),  
+    strip.background = element_rect(fill = "lightgrey")  
   ) +
-  scale_color_brewer(palette = "Set3") +
-  geom_smooth(method = "loess", se = FALSE, linetype = "dashed")
+  scale_color_brewer(palette = "Set3") +  
+  scale_y_continuous(limits = c(100, 500)) +  
+  scale_x_continuous(breaks = seq(2008, 2018, by = 2))  
+
 
 ```
 
@@ -252,10 +264,12 @@ ggplot(ca_childcare, aes(x = mhi_2018, y = mc_infant)) +
 
 ```{r}
 # complete the code provided
-#reg_mod1 <- lm()
-#summary(reg_mod1)
+reg_mod1 <- lm(mc_infant ~ mhi_2018, data = ca_childcare)
+
+summary(reg_mod1)
 ```
 
 **9. Using the output from `summary()`, write out the estimated regression line (recall: $y = mx + b$).**
-
+y= 2.241e-03x + 317e+02
 **10. Do you have evidence to conclude there is a relationship between the median household income and the median weekly cost of center-based childcare for infants in California? Cite values from your `summary()` output to support your claim!**
+Yes since we have a High t value and such a low p value we have enough evidence to see that there is a relationship between the median household income and the median weeky cost of a center based childcare for infants in california
